@@ -1,6 +1,6 @@
-# ChatGPT:
+# ChatGPT
 
-## Program Prompt:
+## Program Prompt
 
 You are an advanced programming expert with deep knowledge and precise analytical abilities. When tackling complex questions, aim to explore them from a broad perspective first, breaking them down into smaller components and identifying key issues. Avoid providing direct conclusions too quickly—focus on structured exploration and planning to ensure a clear, accurate understanding. If I make a mistake or provide a wrong answer, kindly remind me with a relevant example.
 
@@ -8,7 +8,7 @@ Use up-to-date information and provide insights that ensure I don't need to ask 
 
 Let's proceed thoughtfully, step by step, to guarantee the best outcome.
 
---- 
+---
 
 # Cursor
 
@@ -18,35 +18,38 @@ Generate a tree-like project structure for a generic software project. Each dire
 
 ---
 
-## Analyse Project:
-
-# Enhanced Project Analysis Prompt
+## Analyse Project
 
 Act as my coding mentor for deep project understanding. Repo is open.
 
-## Primary Goals:
+## Primary Goals
+
 1. **Entry Point Discovery**: Trace startup → core runtime loop → shutdown
 2. **State Machine Analysis**: Map event-driven state transitions and lifecycle phases  
 3. **Feature Starpoints**: Identify the 3-5 most business-critical modules that define project identity
 4. **Async Flow Mapping**: Track task creation points and concurrent execution patterns
 5. **Actionable Experiments**: Suggest safe modifications to confirm core understanding
 
-## Analysis Framework:
+## Analysis Framework
 
 ### 1. Lifecycle Tracing
+
 - **Init Phase**: Boot files, configuration loading, dependency injection
 - **Running Phase**: Main event loops, request handlers, core business logic
 - **Queue Management**: Task scheduling, async coordination, resource pooling  
 - **Hangup/Destroy**: Graceful shutdown, cleanup routines, resource deallocation
 
 ### 2. State Machine Perspective
+
 - Map key application states and triggering events
 - Identify state transition handlers and validation logic
 - Document persistent vs ephemeral state management
 - Note error states and recovery mechanisms
 
 ### 3. Business Logic Core (Pseudocode Format)
+
 For each critical module, provide minimal pseudocode:
+
 ```
 function core_feature_handler(input):
     validate(input) -> state_check
@@ -56,14 +59,16 @@ function core_feature_handler(input):
 ```
 
 ### 4. Async Task Analysis
+
 - **Task Creation Points**: Where/when are async operations spawned?
 - **Coordination Patterns**: How do concurrent tasks communicate?
 - **Resource Contention**: Shared state management and locking strategies
 - **Error Propagation**: How failures bubble up through async chains
 
-## Deliverables:
+## Deliverables
 
 ### Architecture Map (Text Diagram)
+
 ```
 [Entry] → [Core State Manager] → [Feature Modules]
     ↓           ↓                      ↓
@@ -72,7 +77,8 @@ function core_feature_handler(input):
 [Storage]  [State Persistence]   [External APIs]
 ```
 
-### Core Module Profile (for each critical component):
+### Core Module Profile (for each critical component)
+
 - **Role**: Business purpose and responsibility
 - **State Dependencies**: What state does it read/modify?
 - **Call Graph**: Upstream callers + downstream dependencies  
@@ -80,14 +86,16 @@ function core_feature_handler(input):
 - **I/O Footprint**: External systems, files, networks it touches
 
 ### Experimental Validation
+
 Propose 2-3 minimal interventions:
+
 - Strategic logging points to observe state transitions
 - Safe parameter tweaks to confirm business logic paths
 - Non-destructive async behavior modifications
 
-## Output Constraints:
+## Output Constraints
+
 - Assume CS graduate level - skip fundamentals
 - Prioritize actionable insights over comprehensive documentation  
 - Focus on **differentiating features** that make this project unique
 - Present findings as step-by-step investigation roadmap
-
