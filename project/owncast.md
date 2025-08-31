@@ -1,20 +1,171 @@
-## Project Overview
+[TOC]
 
-### Project Name
+## **Project Overview**
+
+### **Project Name**
+
 [Owncast](https://github.com/owncast/owncast)
 
-### Description
+### **Description**
+
 Owncast is an open source, self-hosted, decentralized, single-user live video streaming and chat server. It allows you to run your own live streams, offering complete ownership over your content, interface, moderation, and audience. It aims to provide a similar experience to large mainstream platforms, but with full control for the user.
 
-### Key Features
-- Self-hosted live streaming
-- Chat functionality for real-time interactions
-- Fully decentralized
-- Complete control over content and audience
+### **Term**
+
+#### **RTMP**
+
+RTMP (Real-Time Messaging Protocol) is a streaming protocol originally developed by Macromedia (later Adobe).
+
+**workflow**
+
+[Camera/Microphone]
+       ↓
+   [Encoder: OBS, FFmpeg]
+       ↓ (push RTMP stream)
+ [RTMP Server: nginx-rtmp, MediaMTX, etc.]
+       ↓
+   [Transcoding / Distribution]
+       ↓
+ [Viewers: HLS/DASH/RTMP playback]
+
+- Ingest (input): The encoder sends RTMP to the server (rtmp://server/app/streamkey).
+- Processing: The server may transcode or repackage into HLS/DASH/LL-HLS for web playback.
+- Delivery: Viewers consume the stream via modern protocols (HLS/DASH/WebRTC). Direct RTMP playback is now mostly legacy (Flash is dead), but still used in closed workflows or with specific players.
+
+#### **Fediverse(ActivityPub Integrate)**
+
+The Fediverse (short for "federated universe") is a network of independently hosted but interoperable social platforms
+
+- Decentralized: No single company controls the network.
+- Interoperable: A user on Mastodon (microblogging) can follow someone on PeerTube (video hosting) or Pixelfed (photo sharing).
+- Community-driven: Each server can set its own rules, moderation style, and culture.
+- Portable identity: You can move between servers while keeping your identity and followers (to some degree).
+
+**workflow**
+
+[Ingest: OBS/RTMP/SRT/WebRTC]
+        │
+   (MediaMTX / Owncast / SRS)  ← handles media only
+        │ emits webhooks or polls state
+        ▼
+ [AP Gateway]
+
+- /.well-known/webfinger, nodeinfo
+- /actors/{channel} (Group/Person)
+- /inbox (S2S receive)
+- /outbox (S2S send)
+- Signs requests (HTTP Signatures), JSON-LD contexts
+- Persists followers / delivery queue
+        │
+   Delivers Create/Update/Announce(Video), Note(comments)
+        ▼
+ Fediverse (Mastodon, Misskey, PeerTube, …)
+
+### **Logic**
+
+[STREAMER]
+  └─> Broadcasting Software
+        │
+        │  RTMP
+        ▼
+[VIDEO PIPELINE]
+  ┌───────────────────────────────┐
+  │  RTMP Service (Ingest)        │
+  └───────────────┬───────────────┘
+                  │
+                  │  RTMP
+                  ▼
+  ┌────────────────────────────────────────┐
+  │  Video Transcoder                      │
+  │    └─ HLS out ─────────────────────┐   │
+  └────────────────────────────────────┴───┘
+                                         │
+                                         │ HLS
+                                         ▼
+[VIDEO STORAGE PROVIDERS]                 ┌──────────────────────────────────────┐
+  ┌──────────────────────┐                │  Local Storage                      │
+  │  S3 Storage          │<───────────────┤   (serves HLS via On-Disk Assets)   │
+  └──────────────────────┘                └──────────────────────────────────────┘
+
+[WEB SERVER]
+  ┌────────────────────────────────────────────────────────────────────────────┐
+  │ HTTP Handlers                                                              │
+  │  ├─ Admin APIs                                                             │
+  │  ├─ 3rd Party APIs                                                         │
+  │  ├─ WebSocket                                                              │
+  │  ├─ Chat APIs                                                              │
+  │  │    ├─ Chat User Registration                                            │
+  │  │    ├─ Emojis                                                            │
+  │  │    └─ Chat Authentication                                               │
+  │  │         ├─ IndieAuth                                                    │
+  │  │         └─ FediAuth                                                     │
+  │  ├─ Video APIs                                                             │
+  │  │    ├─ Viewer Ping                                                       │
+  │  │    └─ Playback Health Metrics                                           │
+  │  ├─ ActivityPub Handlers                                                   │
+  │  ├─ Application Config                                                     │
+  │  ├─ Application Status                                                     │
+  │  ├─ Directory API                                                          │
+  │  └─ Followers                                                              │
+  │                                                                            │
+  │ Web Assets                                                                 │
+  │  ├─ Embedded Static Assets                                                 │
+  │  ├─ On-Disk Static Assets  <─── HLS from Local Storage                     │
+  │  ├─ Public Directory                                                       │
+  │  └─ Web Application                                                        │
+  └────────────────────────────────────────────────────────────────────────────┘
+
+[CHAT SERVICE]
+  ┌───────────────────────────────┐      ┌──────────────────────────────────────┐
+  │           Chat                │<─────┤  Chat Repository                     │
+  └───────────────────────────────┘      └──────────────────────────────────────┘
+             ▲
+             │ (auth)
+             │
+  ┌───────────────────────────────┐      ┌──────────────────────────────────────┐
+  │         Authentication        │      │  External Notifications              │
+  │   ├─ IndieAuth                │      │   ├─ Discord Notifier                │
+  │   └─ FediAuth                 │      │   └─ Browser Notifier                │
+  └───────────────────────────────┘      └──────────────────────────────────────┘
+
+[ACTIVITYPUB]
+  ┌───────────────────────────────┐      ┌──────────────────────────────────────┐
+  │  ActivityPub Outbound         │ ───► │  AppController (see Dependencies)    │
+  └───────────────────────────────┘      └──────────────────────────────────────┘
+
+[DEPENDENCIES]
+  ┌────────────────────────────────────────────────────────────────────────────┐
+  │                         AppController (central)                             │
+  │                          ▲         ▲         ▲         ▲                   │
+  │                          │         │         │         │                   │
+  │     GeoIP Lookup ────────┘   Application  Statistics  Outbound Webhooks    │
+  │                                State                                       │
+  │                                                                            │
+  │  Repositories:                                                             │
+  │    ├─ Config Repository   ◄── Database ──► User Repository                 │
+  │    ├─ Notifications Repo  ◄── Database ──► ActivityPub Repository          │
+  │    └─ Chat Repository     ◄── (feeds Chat Service)                         │
+  │                                                                            │
+  │  AppController has references to:                                          │
+  │    • HTTP Handlers (Web Server)                                            │
+  │    • Video Pipeline                                                         │
+  │    • ActivityPub                                                            │
+  │    • Authentication (IndieAuth, FediAuth)                                   │
+  │    • External Notifications (Discord/Browser)                               │
+  │    • Directory Notifier (Owncast Directory)                                 │
+  └────────────────────────────────────────────────────────────────────────────┘
+
+[DATA FLOWS / NOTES]
+  • Broadcasting Software ─RTMP─► RTMP Service ─RTMP─► Transcoder ─HLS─► Storage
+  • Local Storage ─HLS─► On-Disk Static Files (served by Web Server)
+  • Chat Repository ↔ Chat Service
+  • AppController orchestrates all modules and consumes repositories + services
+  • External Notifiers (Discord/Browser) triggered by AppController/Outbound hooks
 
 ---
 
 ## Project Structure
+
 ```
 owncast/                                    # Root directory - Self-hosted live streaming platform
 ├── main.go                                # Main entry point - Initializes core services, database, and web server
@@ -212,10 +363,10 @@ owncast/                                    # Root directory - Self-hosted live 
 ├── docs/
 ```
 
-
 ## **Project Understanding**
 
 ### **Architecture Map**
+
 ```
 [main.go] → [core.Start()] → [RTMP Server + Transcoder + Chat + Web]
     ↓              ↓                    ↓
@@ -229,12 +380,14 @@ owncast/                                    # Root directory - Self-hosted live 
 ### **1. Lifecycle Tracing**
 
 #### **Init Phase**
+
 - **Entry Point**: `main.go` → `core.Start()`
 - **Configuration**: Database setup, emoji migration, temp directory creation
 - **Dependencies**: RTMP server, transcoder, chat system, webhooks, notifications
 - **State Initialization**: Creates offline video stream state
 
 #### **Running Phase**
+
 - **RTMP Server**: Listens for incoming streams, validates stream keys
 - **Transcoder**: Converts RTMP to HLS segments using FFmpeg
 - **Chat System**: WebSocket-based real-time communication
@@ -242,11 +395,13 @@ owncast/                                    # Root directory - Self-hosted live 
 - **ActivityPub**: Federation with other social platforms
 
 #### **Queue Management**
+
 - **Worker Pools**: ActivityPub inbox/outbox processing
 - **Async Tasks**: Stream notifications, cleanup timers, thumbnail generation
 - **Resource Pooling**: HLS segment cleanup, storage management
 
 #### **Shutdown Phase**
+
 - **Graceful Disconnect**: RTMP connection cleanup, transcoder shutdown
 - **State Persistence**: Stats saving, offline content transition
 - **Resource Cleanup**: Timer cancellation, file cleanup
@@ -254,6 +409,7 @@ owncast/                                    # Root directory - Self-hosted live 
 ### **2. State Machine Analysis**
 
 #### **Key States**
+
 ```
 OFFLINE → [RTMP Connect] → STREAMING → [RTMP Disconnect] → OFFLINE
    ↓           ↓              ↓              ↓
@@ -262,11 +418,13 @@ OFFLINE → [RTMP Connect] → STREAMING → [RTMP Disconnect] → OFFLINE
 ```
 
 #### **State Transitions**
+
 - **OFFLINE → STREAMING**: RTMP connection + valid stream key
 - **STREAMING → OFFLINE**: RTMP disconnect or transcoder failure
 - **Recovery**: Automatic offline content restoration after 5 minutes
 
 #### **State Dependencies**
+
 - **Stream State**: `_stats.StreamConnected`, `_currentBroadcast`
 - **Timers**: Online cleanup (1 min), offline cleanup (5 min)
 - **External State**: ActivityPub federation, notifications
@@ -274,6 +432,7 @@ OFFLINE → [RTMP Connect] → STREAMING → [RTMP Disconnect] → OFFLINE
 ### **3. Business-Critical Modules**
 
 #### **A. RTMP Stream Ingestion** (`core/rtmp/`)
+
 ```go
 function rtmp_handler(connection, stream_key):
     validate_stream_key(stream_key) -> access_granted
@@ -290,6 +449,7 @@ function rtmp_handler(connection, stream_key):
 **Async Behavior**: Spawns transcoder goroutine, manages connection lifecycle
 
 #### **B. Video Transcoder** (`core/transcoder/`)
+
 ```go
 function transcoder_pipeline(rtmp_input, output_settings):
     validate_input(rtmp_input) -> input_ready
@@ -303,6 +463,7 @@ function transcoder_pipeline(rtmp_input, output_settings):
 **Async Behavior**: FFmpeg subprocess, segment generation, thumbnail creation
 
 #### **C. Chat System** (`core/chat/`)
+
 ```go
 function chat_server(websocket_connections):
     accept_connections() -> client_pool
@@ -316,6 +477,7 @@ function chat_server(websocket_connections):
 **Async Behavior**: WebSocket management, message broadcasting
 
 #### **D. ActivityPub Federation** (`activitypub/`)
+
 ```go
 function federation_manager(followers, content):
     generate_activities(content) -> federated_messages
@@ -329,6 +491,7 @@ function federation_manager(followers, content):
 **Async Behavior**: Worker pools, outbound message queuing
 
 #### **E. Web Interface** (`web/`)
+
 ```go
 function admin_interface(stream_status, config):
     render_stream_controls(stream_status) -> admin_panel
@@ -344,6 +507,7 @@ function admin_interface(stream_status, config):
 ### **4. Async Task Analysis**
 
 #### **Task Creation Points**
+
 1. **RTMP Connection**: `go rtmp.Start(setStreamAsConnected, setBroadcaster)`
 2. **Transcoder**: `go _transcoder.Start(true)` in stream connection
 3. **Cleanup Timers**: `go func()` for online/offline cleanup
@@ -351,12 +515,14 @@ function admin_interface(stream_status, config):
 5. **ActivityPub**: Worker pools for inbox/outbox processing
 
 #### **Coordination Patterns**
+
 - **Callback Functions**: `TranscoderCompleted` for stream lifecycle
 - **Context Cancellation**: `_onlineTimerCancelFunc` for notification timers
 - **Shared State**: Global variables with mutex protection in chat system
 - **Event-Driven**: WebSocket events trigger chat state updates
 
 #### **Resource Contention**
+
 - **Stream State**: Single transcoder instance, global `_stats`
 - **Chat Connections**: Mutex-protected client map
 - **File System**: HLS segment cleanup, thumbnail generation
@@ -365,15 +531,18 @@ function admin_interface(stream_status, config):
 ### **5. Actionable Experiments**
 
 #### **Experiment 1: State Transition Logging**
+
 ```go
 // Add to core/streamState.go:setStreamAsConnected()
 log.Infof("STATE_TRANSITION: OFFLINE → STREAMING | Time: %v | Broadcaster: %s", 
     time.Now(), broadcaster.Name)
 ```
+
 **Purpose**: Observe state machine behavior during stream lifecycle
 **Risk**: Low - only adds logging
 
 #### **Experiment 2: Async Task Monitoring**
+
 ```go
 // Add to core/core.go:Start()
 go func() {
@@ -384,10 +553,12 @@ go func() {
     }
 }()
 ```
+
 **Purpose**: Monitor concurrent task patterns and resource usage
 **Risk**: Low - diagnostic information only
 
 #### **Experiment 3: Federation Behavior Toggle**
+
 ```go
 // Modify activitypub/activitypub.go:SendLive()
 if configRepository.GetFederationEnabled() {
@@ -395,6 +566,7 @@ if configRepository.GetFederationEnabled() {
     // existing code...
 }
 ```
+
 **Purpose**: Understand ActivityPub message distribution patterns
 **Risk**: Low - enhanced logging for federation events
 
